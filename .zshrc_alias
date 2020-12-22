@@ -1,0 +1,21 @@
+
+
+# copy the lines below into your ~/.zshrc file
+vpn() {
+  # just a prefix for the vpn containers
+  vpn_containers_prefix=my-vpn
+  # validating whether the prerequistes satisfied
+  if [[ "$(docker images snx:base -q)" == "" ]]
+  then
+    && echo -e "[ERROR] No {snx:base} docker image identified."
+  else
+    # before establishing a new connection
+    # checking if we have currently active connections
+    # and gracefully close those
+    docker ps -aqf "name=^${vpn_containers_prefix}.*$" | xargs -I {} /bin/bash -c 'id={}; docker exec ${id} snx -d && docker kill ${id} &> /dev/null'
+    # removing the containers left after stopped connections
+    docker rm ${vpn_containers_prefix}-${1} &>/dev/null
+    # starting a new VPN connection
+    docker run --log-opt max-size=1m --log-opt max-file=1 -td --network host -v /lib/modules:/lib/modules --name ${vpn_containers_prefix}-${1} --cap-add NET_ADMIN --env-file ~/.credentials/vpn/${1}.creds snx:base
+  fi
+}
